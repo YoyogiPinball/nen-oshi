@@ -10,7 +10,7 @@
   #sw { padding: 8px 12px; border-radius: 8px; margin: 12px 0; font-weight: bold; }
   .ok { background: #dff3e7; } .ng { background: #fbe3df; }
   ol { padding-left: 1.2em; display: flex; flex-direction: column; gap: 14px; }
-  a { display: inline-block; padding: 10px 14px; background: #2b3a8c; color: #fff; border-radius: 8px; text-decoration: none; font-weight: bold; }
+  a, button { font: inherit; border: 0; cursor: pointer; display: inline-block; padding: 10px 14px; background: #2b3a8c; color: #fff; border-radius: 8px; text-decoration: none; font-weight: bold; }
   small { display: block; color: #5d6584; }
 </style>
 </head>
@@ -26,7 +26,11 @@
   <li><a id="sw-attach" href="#">⑤ Service Worker（attachment 指定）</a><small>③に「ファイルとして保存して」という指定を足したもの</small></li>
   <li><a href="#" id="data">⑥ data: リンク</a><small>.ics の中身をリンクに直接書き込む</small></li>
   <li><a href="#" id="gcal" target="_blank" rel="noopener">⑦ Google カレンダーに追加</a><small>Android 向け。Google カレンダーの追加画面に、日本語のタイトルと日時が入るかを見る</small></li>
+  <li><button type="button" id="share">⑧ 共有シートで .ics を渡す</button><small>ブラウザ内で作った .ics を、iOS の共有シート（共有ボタンで出る一覧）に渡す。一覧に「カレンダー」が出るかを見る</small><small id="share-result"></small></li>
+  <li><a href="#" id="dl" download="nen-oshi-test.ics">⑨ .ics を保存する</a><small>ブラウザ内で作った .ics を「ファイル」アプリに保存する。保存後に「ファイル」アプリでタップしてカレンダーに入るかを見る</small></li>
 </ol>
+<h2 style="font-size:1rem;margin-top:28px">この画面の環境</h2>
+<pre id="env" style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #dde1ec;border-radius:8px;padding:10px;font-size:.75rem"></pre>
 <script>
 const title = '星見ルカ 予約締切（テスト）';
 const q = '?t=' + encodeURIComponent(title) + '&s=20261103T230000&e=20261103T235900';
@@ -39,6 +43,28 @@ const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//nen-oshi//ics-test//JA',
 document.getElementById('blob').href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
 document.getElementById('gcal').href = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(title) + '&dates=20261103T230000/20261103T235900&ctz=Asia/Tokyo&details=' + encodeURIComponent('念推しの確認用の予定です');
 document.getElementById('data').href ='data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+document.getElementById('dl').href = URL.createObjectURL(new Blob([ics.replace('（テスト）', '（⑨保存したファイル）')], { type: 'text/calendar' }));
+
+const shareFile = new File([ics.replace('（テスト）', '（⑧共有シート）')], 'nen-oshi-test.ics', { type: 'text/calendar' });
+const shareResult = document.getElementById('share-result');
+document.getElementById('share').addEventListener('click', async () => {
+  if (!navigator.canShare || !navigator.canShare({ files: [shareFile] })) {
+    shareResult.textContent = '結果: このブラウザではファイルを共有できません';
+    return;
+  }
+  try {
+    await navigator.share({ files: [shareFile] });
+    shareResult.textContent = '結果: 共有シートで何かを選んだ';
+  } catch (err) {
+    shareResult.textContent = '結果: ' + err.name + '（AbortError なら共有シートを閉じた）';
+  }
+});
+
+document.getElementById('env').textContent = [
+  'UA: ' + navigator.userAgent,
+  'Service Worker: ' + ('serviceWorker' in navigator ? 'あり' : 'なし'),
+  'ファイル共有: ' + (navigator.canShare && navigator.canShare({ files: [shareFile] }) ? 'できる' : 'できない'),
+].join('\n');
 
 const box = document.getElementById('sw');
 if (!('serviceWorker' in navigator)) {
