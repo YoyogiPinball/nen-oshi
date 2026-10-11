@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>念推し .ics 確認</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 20px 16px; line-height: 1.6; background: #f6f7fb; color: #1d2340; }
+  h1 { font-size: 1.2rem; margin: 0 0 4px; }
+  #sw { padding: 8px 12px; border-radius: 8px; margin: 12px 0; font-weight: bold; }
+  .ok { background: #dff3e7; } .ng { background: #fbe3df; }
+  ol { padding-left: 1.2em; display: flex; flex-direction: column; gap: 14px; }
+  a { display: inline-block; padding: 10px 14px; background: #2b3a8c; color: #fff; border-radius: 8px; text-decoration: none; font-weight: bold; }
+  small { display: block; color: #5d6584; }
+</style>
+</head>
+<body>
+<h1>念推し .ics 確認ページ</h1>
+<p>上から順にタップして、それぞれ何が起きたか（カレンダーの追加画面が出た／ダウンロードになった／何も起きない）を教えてください。</p>
+<div id="sw" class="ng">Service Worker: 確認中…</div>
+<ol>
+  <li><a href="event.ics">① サーバーにある .ics</a><small>比較用。普通のサーバーから text/calendar で返す。これが動かなければ他も判断できない</small></li>
+  <li><a href="#" id="blob">② blob URL（今の Calf と同じ）</a><small>比較用。iPad でダウンロードになったもの</small></li>
+  <li><a id="sw-plain" href="#">③ Service Worker（指定なし）</a><small>本命。ブラウザ内で作った .ics を返す</small></li>
+  <li><a id="sw-inline" href="#">④ Service Worker（inline 指定）</a><small>③に「ページとして開いて」という指定を足したもの</small></li>
+  <li><a id="sw-attach" href="#">⑤ Service Worker（attachment 指定）</a><small>③に「ファイルとして保存して」という指定を足したもの</small></li>
+  <li><a href="#" id="data">⑥ data: リンク</a><small>.ics の中身をリンクに直接書き込む</small></li>
+  <li><a href="#" id="gcal" target="_blank" rel="noopener">⑦ Google カレンダーに追加</a><small>Android 向け。Google カレンダーの追加画面に、日本語のタイトルと日時が入るかを見る</small></li>
+</ol>
+<script>
+const title = '星見ルカ 予約締切（テスト）';
+const q = '?t=' + encodeURIComponent(title) + '&s=20261103T230000&e=20261103T235900';
+for (const k of ['plain', 'inline', 'attach']) document.getElementById('sw-' + k).href = 'add-' + k + '.ics' + q;
+
+const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//nen-oshi//ics-test//JA','BEGIN:VEVENT',
+  'UID:' + Date.now() + '@nen-oshi','DTSTAMP:20261005T000000Z',
+  'DTSTART;TZID=Asia/Tokyo:20261103T230000','DTEND;TZID=Asia/Tokyo:20261103T235900',
+  'SUMMARY:' + title,'END:VEVENT','END:VCALENDAR',''].join('\r\n');
+document.getElementById('blob').href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+document.getElementById('gcal').href = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(title) + '&dates=20261103T230000/20261103T235900&ctz=Asia/Tokyo&details=' + encodeURIComponent('念推しの確認用の予定です');
+document.getElementById('data').href ='data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+
+const box = document.getElementById('sw');
+if (!('serviceWorker' in navigator)) {
+  box.textContent = 'Service Worker: このブラウザでは使えません';
+} else {
+  navigator.serviceWorker.register('sw.js').catch(err => { box.textContent = 'Service Worker: 登録に失敗 ' + err; });
+  const show = () => {
+    if (navigator.serviceWorker.controller) { box.textContent = 'Service Worker: 有効（③〜⑤を試せます）'; box.className = 'ok'; }
+    else box.textContent = 'Service Worker: まだ有効になっていません。数秒待ってページを再読み込みしてください';
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', show);
+  show();
+}
+</script>
+</body>
+</html>
